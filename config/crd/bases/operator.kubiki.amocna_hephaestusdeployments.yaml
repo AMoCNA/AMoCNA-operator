@@ -1,0 +1,80 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.12.0
+  name: hephaestusdeployments.operator.kubiki.amocna
+spec:
+  group: operator.kubiki.amocna
+  names:
+    kind: HephaestusDeployment
+    listKind: HephaestusDeploymentList
+    plural: hephaestusdeployments
+    singular: hephaestusdeployment
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: HephaestusDeployment is the Schema for the hephaestusdeployments
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HephaestusDeploymentSpec defines the desired state of HephaestusDeployment
+            properties:
+              executionControllerImage:
+                type: string
+              executionControllerInternalPort:
+                format: int32
+                type: integer
+              executionControllerServiceAccountName:
+                type: string
+              hephaestusGuiConfigMapFilePath:
+                type: string
+              hephaestusGuiConfigMapRaw:
+                additionalProperties:
+                  type: string
+                type: object
+              hephaestusGuiExternalPort:
+                format: int32
+                type: integer
+              hephaestusGuiInternalPort:
+                format: int32
+                type: integer
+              hephaestusGuiVersion:
+                type: string
+              metricsAdapterImage:
+                type: string
+              metricsAdapterInternalPort:
+                format: int32
+                type: integer
+              prometheusAddress:
+                type: string
+            required:
+            - executionControllerImage
+            - hephaestusGuiVersion
+            - metricsAdapterImage
+            - prometheusAddress
+            type: object
+          status:
+            description: HephaestusDeploymentStatus defines the observed state of
+              HephaestusDeployment
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
