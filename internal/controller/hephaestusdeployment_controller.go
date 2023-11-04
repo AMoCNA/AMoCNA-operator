@@ -99,22 +99,6 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	log.Log.Info("Created Gui Service", "GuiService.Namespace", guiService.Namespace, "GuiService.Name", guiService.Name)
 
-	//metrics-adapter
-	log.FromContext(ctx).Info("Metrics Adapter Image is ", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
-
-	if hephaestusDeployment.Spec.MetricsAdapterImage == "" {
-		log.Log.Info("Metrics Adapter Image is not set")
-	} else {
-		log.Log.Info("Metrics Adapter Image is set", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
-	}
-
-	metricsAdapterDeployment := getMetricsAdapterDeployment(hephaestusDeployment)
-	if err := r.Create(ctx, &metricsAdapterDeployment); err != nil {
-		log.Log.Error(err, "unable to create metrics adapter Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
-		return ctrl.Result{}, err
-	}
-	log.Log.Info("Created Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
-
 	//execution-controller
 	log.FromContext(ctx).Info("Execution Controller Image is ", "ExecutionControllerImage", hephaestusDeployment.Spec.ExecutionControllerImage)
 
@@ -131,6 +115,22 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	log.Log.Info("Created Deployment", "Deployment.Namespace", executionControllerDeployment.Namespace, "Deployment.Name", executionControllerDeployment.Name)
 
+	//metrics-adapter
+	log.FromContext(ctx).Info("Metrics Adapter Image is ", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
+
+	if hephaestusDeployment.Spec.MetricsAdapterImage == "" {
+		log.Log.Info("Metrics Adapter Image is not set")
+	} else {
+		log.Log.Info("Metrics Adapter Image is set", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
+	}
+
+	metricsAdapterDeployment := getMetricsAdapterDeployment(hephaestusDeployment)
+	if err := r.Create(ctx, &metricsAdapterDeployment); err != nil {
+		log.Log.Error(err, "unable to create metrics adapter Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
+		return ctrl.Result{}, err
+	}
+	log.Log.Info("Created Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)	
+	
 	return ctrl.Result{}, nil
 }
 
