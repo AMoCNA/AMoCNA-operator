@@ -39,11 +39,11 @@ func getMetricsAdapterDeployment(hephaestusDeployment operatorv1.HephaestusDeplo
 							Env: []corev1.EnvVar{
 								{
 									Name:  "backend",
-									Value: "http://" + hephaestusDeployment.Name + "-gui-deployment." + hephaestusDeployment.Namespace + ":" + fmt.Sprint(guiPort),
+									Value: "http://" + hephaestusDeployment.Name + "-hephaestus-gui-service." + hephaestusDeployment.Namespace + ":" + fmt.Sprint(guiPort),
 								},
 								{
 									Name:  "kubernetes-management",
-									Value: "http://" + hephaestusDeployment.Name + "-execution-controller." + hephaestusDeployment.Namespace + ":" + fmt.Sprint(executionControllerPort),
+									Value: "http://" + hephaestusDeployment.Name + "-hephaestus-exec-ctrl-service." + hephaestusDeployment.Namespace + ":" + fmt.Sprint(executionControllerPort),
 								},
 							},
 							ImagePullPolicy: corev1.PullPolicy("Always"),

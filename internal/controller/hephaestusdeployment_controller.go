@@ -57,7 +57,16 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 
 	log.Log.Info("Reconciling Test Hesphaestus Deployment", "Hesphaestus Deployment", hephaestusDeployment)
 
-	//volume
+	// persistent volume
+
+	persistentVolume := getPersistentVolumeDeployment(hephaestusDeployment)
+	if err := r.Create(ctx, &persistentVolume); err != nil {
+		log.Log.Error(err, "unable to create persistent volume Deployment", "persistent volume", persistentVolume)
+		return ctrl.Result{}, err
+	}
+	log.Log.Info("Created PV", "PV", persistentVolume.Name)
+
+	// persistent volume claim
 
 	volumeDeployment := getVolumeDeployment(hephaestusDeployment)
 	if err := r.Create(ctx, &volumeDeployment); err != nil {
@@ -115,6 +124,14 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	log.Log.Info("Created Deployment", "Deployment.Namespace", executionControllerDeployment.Namespace, "Deployment.Name", executionControllerDeployment.Name)
 
+	//execution-controller-service
+	executionControllerService := getExecutionControllerService(hephaestusDeployment)
+	if err := r.Create(ctx, &executionControllerService); err != nil {
+		log.Log.Error(err, "unable to create Execution Controller Service", "ExecutionControllerService.Namespace", executionControllerService.Namespace, "ExecutionControllerService.Name", executionControllerService.Name)
+		return ctrl.Result{}, err
+	}
+	log.Log.Info("Created Execution Controller Service", "ExecutionControllerService.Namespace", executionControllerService.Namespace, "ExecutionControllerService.Name", executionControllerService.Name)
+
 	//metrics-adapter
 	log.FromContext(ctx).Info("Metrics Adapter Image is ", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
 
@@ -129,8 +146,8 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Log.Error(err, "unable to create metrics adapter Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
 		return ctrl.Result{}, err
 	}
-	log.Log.Info("Created Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)	
-	
+	log.Log.Info("Created Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
+
 	return ctrl.Result{}, nil
 }
 
