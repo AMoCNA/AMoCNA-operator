@@ -19,9 +19,13 @@ package controller
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	types "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	//"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	operatorv1 "kubiki.amocna/operator/api/v1"
@@ -31,6 +35,39 @@ import (
 type HephaestusDeploymentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+}
+
+func createOrUpdateDeployment(r *HephaestusDeploymentReconciler, ctx context.Context, f func(operatorv1.HephaestusDeployment, *appsv1.Deployment), hephaestusDeployment operatorv1.HephaestusDeployment) error {
+	_ = log.FromContext(ctx)
+	var name = types.NamespacedName{
+		// todo
+		Name:      hephaestusDeployment.Name + "-gui-deployment",
+		Namespace: hephaestusDeployment.Namespace,
+	}
+	var deployment = &appsv1.Deployment{}
+	if err := r.Get(ctx, name, deployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			f(hephaestusDeployment, deployment)
+			log.Log.Info("Component not found, creating")
+			if err := r.Create(ctx, deployment); err != nil {
+				log.Log.Error(err, "unable to create Deployment", "Deployment.Namespace", deployment.Namespace, "Deployment.Name", deployment.Name)
+				return err
+			}
+		} else {
+			return err
+		}
+	} else {
+		log.Log.Info("Component found, updating")
+		patch := client.MergeFrom(deployment.DeepCopy())
+		f(hephaestusDeployment, deployment)
+		//oldDeployment.Spec.Template.Spec.Containers[0].Image = "hephaestusmetrics/gui:2137"
+		if err := r.Patch(ctx, deployment, patch); err != nil {
+			log.Log.Error(err, "unable to update Deployment", "Deployment.Namespace", deployment.Namespace, "Deployment.Name", deployment.Name)
+			return err
+		}
+	}
+
+	return nil
 }
 
 //+kubebuilder:rbac:groups=operator.kubiki.amocna,resources=hephaestusdeployments,verbs=get;list;watch;create;update;patch;delete
@@ -61,8 +98,7 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 
 	persistentVolume := getPersistentVolumeDeployment(hephaestusDeployment)
 	if err := r.Create(ctx, &persistentVolume); err != nil {
-		log.Log.Error(err, "unable to create persistent volume Deployment", "persistent volume", persistentVolume)
-		return ctrl.Result{}, err
+		//log.Log.Error(err, "unable to create persistent volume Deployment", "persistent volume", persistentVolume)
 	}
 	log.Log.Info("Created PV", "PV", persistentVolume.Name)
 
@@ -70,8 +106,7 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 
 	volumeDeployment := getVolumeDeployment(hephaestusDeployment)
 	if err := r.Create(ctx, &volumeDeployment); err != nil {
-		log.Log.Error(err, "unable to create volume Deployment", "volume", volumeDeployment)
-		return ctrl.Result{}, err
+		//log.Log.Error(err, "unable to create volume Deployment", "volume", volumeDeployment)
 	}
 	log.Log.Info("Created PVC", "PVC", volumeDeployment.Name)
 
@@ -79,8 +114,8 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	if hephaestusDeployment.Spec.HephaestusGuiConfigMapRaw != nil {
 		configMap := getConfigMap(hephaestusDeployment)
 		if err := r.Create(ctx, &configMap); err != nil {
-			log.Log.Error(err, "Unable to create config map", "config map", configMap)
-			return ctrl.Result{}, err
+			//log.Log.Error(err, "Unable to create config map", "config map", configMap)
+			//return ctrl.Result{}, err
 		}
 		log.Log.Info("Created Config map", "config map", configMap.Name)
 	}
@@ -93,61 +128,72 @@ func (r *HephaestusDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Log.Info("GUI Version is set", "HephaestusGuiVersion", hephaestusDeployment.Spec.HephaestusGuiVersion)
 	}
 
-	guiDeployment := getGuiDeployment(hephaestusDeployment, hephaestusDeployment.Spec.HephaestusGuiConfigMapRaw != nil)
-	if err := r.Create(ctx, &guiDeployment); err != nil {
-		log.Log.Error(err, "unable to create Deployment", "Deployment.Namespace", guiDeployment.Namespace, "Deployment.Name", guiDeployment.Name)
+	//guiDeployment := getGuiDeployment(hephaestusDeployment, hephaestusDeployment.Spec.HephaestusGuiConfigMapRaw != nil)
+	/*if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, &guiDeployment, func() error {
+		log.Log.Info("Here")
+		return nil
+		//return r.Patch(ctx, &guiDeployment, client.MergeFrom(guiDeployment.DeepCopy()))
+	}); err != nil {
+		return ctrl.Result{}, err
+	}*/
+
+	if err := createOrUpdateDeployment(r, ctx, getGuiDeployment, hephaestusDeployment); err != nil {
 		return ctrl.Result{}, err
 	}
-	log.Log.Info("Created Deployment", "Deployment.Namespace", guiDeployment.Namespace, "Deployment.Name", guiDeployment.Name)
+	//if err := r.Create(ctx, &guiDeployment); err != nil {
+	//	log.Log.Error(err, "unable to create Deployment", "Deployment.Namespace", guiDeployment.Namespace, "Deployment.Name", guiDeployment.Name)
+	//	return ctrl.Result{}, err
+	//}
+	//log.Log.Info("Created Deployment", "Deployment.Namespace", guiDeployment.Namespace, "Deployment.Name", guiDeployment.Name)
+	/*
+		//gui-service
+		guiService := getGuiService(hephaestusDeployment)
+		if err := r.Create(ctx, &guiService); err != nil {
+			log.Log.Error(err, "unable to create Gui Service", "GuiService.Namespace", guiService.Namespace, "GuiService.Name", guiService.Name)
+			return ctrl.Result{}, err
+		}
+		log.Log.Info("Created Gui Service", "GuiService.Namespace", guiService.Namespace, "GuiService.Name", guiService.Name)
 
-	//gui-service
-	guiService := getGuiService(hephaestusDeployment)
-	if err := r.Create(ctx, &guiService); err != nil {
-		log.Log.Error(err, "unable to create Gui Service", "GuiService.Namespace", guiService.Namespace, "GuiService.Name", guiService.Name)
-		return ctrl.Result{}, err
-	}
-	log.Log.Info("Created Gui Service", "GuiService.Namespace", guiService.Namespace, "GuiService.Name", guiService.Name)
+		//execution-controller
+		log.FromContext(ctx).Info("Execution Controller Image is ", "ExecutionControllerImage", hephaestusDeployment.Spec.ExecutionControllerImage)
 
-	//execution-controller
-	log.FromContext(ctx).Info("Execution Controller Image is ", "ExecutionControllerImage", hephaestusDeployment.Spec.ExecutionControllerImage)
+		if hephaestusDeployment.Spec.ExecutionControllerImage == "" {
+			log.Log.Info("Execution Controller Image is not set")
+		} else {
+			log.Log.Info("Execution Controller Image is set", "ExecutionControllerImage", hephaestusDeployment.Spec.ExecutionControllerImage)
+		}
 
-	if hephaestusDeployment.Spec.ExecutionControllerImage == "" {
-		log.Log.Info("Execution Controller Image is not set")
-	} else {
-		log.Log.Info("Execution Controller Image is set", "ExecutionControllerImage", hephaestusDeployment.Spec.ExecutionControllerImage)
-	}
+		executionControllerDeployment := getExecutionControllerDeployment(hephaestusDeployment)
+		if err := r.Create(ctx, &executionControllerDeployment); err != nil {
+			log.Log.Error(err, "unable to create execution controller Deployment", "Deployment.Namespace", executionControllerDeployment.Namespace, "Deployment.Name", executionControllerDeployment.Name)
+			return ctrl.Result{}, err
+		}
+		log.Log.Info("Created Deployment", "Deployment.Namespace", executionControllerDeployment.Namespace, "Deployment.Name", executionControllerDeployment.Name)
 
-	executionControllerDeployment := getExecutionControllerDeployment(hephaestusDeployment)
-	if err := r.Create(ctx, &executionControllerDeployment); err != nil {
-		log.Log.Error(err, "unable to create execution controller Deployment", "Deployment.Namespace", executionControllerDeployment.Namespace, "Deployment.Name", executionControllerDeployment.Name)
-		return ctrl.Result{}, err
-	}
-	log.Log.Info("Created Deployment", "Deployment.Namespace", executionControllerDeployment.Namespace, "Deployment.Name", executionControllerDeployment.Name)
+		//execution-controller-service
+		executionControllerService := getExecutionControllerService(hephaestusDeployment)
+		if err := r.Create(ctx, &executionControllerService); err != nil {
+			log.Log.Error(err, "unable to create Execution Controller Service", "ExecutionControllerService.Namespace", executionControllerService.Namespace, "ExecutionControllerService.Name", executionControllerService.Name)
+			return ctrl.Result{}, err
+		}
+		log.Log.Info("Created Execution Controller Service", "ExecutionControllerService.Namespace", executionControllerService.Namespace, "ExecutionControllerService.Name", executionControllerService.Name)
 
-	//execution-controller-service
-	executionControllerService := getExecutionControllerService(hephaestusDeployment)
-	if err := r.Create(ctx, &executionControllerService); err != nil {
-		log.Log.Error(err, "unable to create Execution Controller Service", "ExecutionControllerService.Namespace", executionControllerService.Namespace, "ExecutionControllerService.Name", executionControllerService.Name)
-		return ctrl.Result{}, err
-	}
-	log.Log.Info("Created Execution Controller Service", "ExecutionControllerService.Namespace", executionControllerService.Namespace, "ExecutionControllerService.Name", executionControllerService.Name)
+		//metrics-adapter
+		log.FromContext(ctx).Info("Metrics Adapter Image is ", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
 
-	//metrics-adapter
-	log.FromContext(ctx).Info("Metrics Adapter Image is ", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
+		if hephaestusDeployment.Spec.MetricsAdapterImage == "" {
+			log.Log.Info("Metrics Adapter Image is not set")
+		} else {
+			log.Log.Info("Metrics Adapter Image is set", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
+		}
 
-	if hephaestusDeployment.Spec.MetricsAdapterImage == "" {
-		log.Log.Info("Metrics Adapter Image is not set")
-	} else {
-		log.Log.Info("Metrics Adapter Image is set", "MetricsAdapterImage", hephaestusDeployment.Spec.MetricsAdapterImage)
-	}
-
-	metricsAdapterDeployment := getMetricsAdapterDeployment(hephaestusDeployment)
-	if err := r.Create(ctx, &metricsAdapterDeployment); err != nil {
-		log.Log.Error(err, "unable to create metrics adapter Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
-		return ctrl.Result{}, err
-	}
-	log.Log.Info("Created Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
-
+		metricsAdapterDeployment := getMetricsAdapterDeployment(hephaestusDeployment)
+		if err := r.Create(ctx, &metricsAdapterDeployment); err != nil {
+			log.Log.Error(err, "unable to create metrics adapter Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
+			return ctrl.Result{}, err
+		}
+		log.Log.Info("Created Deployment", "Deployment.Namespace", metricsAdapterDeployment.Namespace, "Deployment.Name", metricsAdapterDeployment.Name)
+	*/
 	return ctrl.Result{}, nil
 }
 

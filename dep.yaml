@@ -1,0 +1,17 @@
+apiVersion: operator.kubiki.amocna/v1
+kind: HephaestusDeployment
+metadata:
+  name: hephaestusdeployment-sample-a7
+  namespace: kubiki
+spec:
+  hephaestusGuiVersion: "dev"
+  prometheusAddress: "prometheus.monitoring:9090"
+  executionControllerImage: "ra77us/kubiki-ctrl:v2"
+  metricsAdapterImage: "ra77us/kubiki-ma:v6"
+  hephaestusGuiExternalPort: 31122
+  metricsAdapterInternalPort: 8085
+  hephaestusGuiInternalPort: 8080
+  executionControllerInternalPort: 8097
+  hephaestusGuiConfigMapRaw:
+    metrics.json: |
+      {"chosenMetrics":[{"tag":"avg_cpu_frontend","queryString":"avg(rate(container_cpu_usage_seconds_total{container=\"front-end\"}[1m]))"}]}
